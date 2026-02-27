@@ -1,9 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'home_page.dart';
 
 void main() {
-  runApp(const BalladeArtApp());
+  // Preserve splash screen
+  WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+
+  // Lock to portrait mode (Android + iOS)
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]).then((_) {
+    runApp(const BalladeArtApp());
+
+    // Remove splash after 3 seconds (same as iOS)
+    Future.delayed(const Duration(seconds: 3), () {
+      FlutterNativeSplash.remove();
+    });
+  });
 }
 
 class BalladeArtApp extends StatelessWidget {

@@ -245,7 +245,7 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 28,
                       letterSpacing: 4,
                       color: const Color(0xFFDFD0B8),
-                      fontWeight: FontWeight.bold, // Biraz daha belirgin olsun
+                       // Biraz daha belirgin olsun
                     ),
                   ),
                 ),
