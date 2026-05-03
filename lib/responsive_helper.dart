@@ -21,10 +21,9 @@ class ResponsiveHelper {
   }
 
   /// Get responsive font size based on screen
-  static double fontSize(BuildContext context, double baseSize, {double? maxSize}) {
+  static double fontSize(BuildContext context, double baseSize, {double? maxSize, double? minSize}) {
     final width = MediaQuery.of(context).size.width;
 
-    // Scale factor based on screen width
     double scaleFactor;
     if (width < 360) {
       scaleFactor = 0.85; // Compact phones (e.g., Galaxy S10e)
@@ -35,7 +34,14 @@ class ResponsiveHelper {
     }
 
     final calculated = baseSize * scaleFactor;
-    return maxSize != null ? calculated.clamp(baseSize, maxSize) : calculated;
+
+    // FIX: Önceki kodda clamp(baseSize, maxSize) kullanılıyordu.
+    // Bu, küçük ekranda scaleFactor=0.85 ile hesaplanan değeri
+    // baseSize'a (alt sınır) çekiyordu — küçültme etkisiz kalıyordu.
+    // Şimdi alt sınır, baseSize'ın %75'i olarak ayarlandı.
+    final effectiveMin = minSize ?? (baseSize * 0.75);
+    final effectiveMax = maxSize ?? (baseSize * 1.5);
+    return calculated.clamp(effectiveMin, effectiveMax);
   }
 
   /// Get responsive spacing

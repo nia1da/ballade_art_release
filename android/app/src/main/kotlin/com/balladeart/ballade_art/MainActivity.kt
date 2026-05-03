@@ -15,8 +15,8 @@ class MainActivity: FlutterActivity() {
             if (call.method == "getDpi") {
                 val metrics: DisplayMetrics = resources.displayMetrics
                 val map: HashMap<String, Any> = hashMapOf(
-                    "xdpi" to metrics.xdpi,
-                    "ydpi" to metrics.ydpi
+                    "xdpi" to metrics.xdpi.toDouble(),  // FIX: Float → Double, Dart cast'i için
+                    "ydpi" to metrics.ydpi.toDouble()   // FIX: Float → Double, Dart cast'i için
                 )
                 result.success(map)
             } else {
