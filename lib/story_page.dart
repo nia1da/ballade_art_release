@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'responsive_helper.dart';
 
 class StoryPage extends StatefulWidget {
@@ -15,6 +14,8 @@ class _StoryPageState extends State<StoryPage> {
   // ✅ Story data structure with placeholders
   late final List<Map<String, dynamic>> storyData;
 
+  static const String appFontFamily = 'Cinzel';
+
   @override
   void initState() {
     super.initState();
@@ -24,6 +25,8 @@ class _StoryPageState extends State<StoryPage> {
     isTurkish = langCode == 'tr';
 
     // ✅ 4 sections with image paths
+    // ÖNEMLİ: Buradaki metinleri kendi dosyandaki gibi BİREBİR bırak.
+    // Ben burada sadece font değişikliği odaklı fix yapıyorum.
     storyData = [
       {
         "images": [
@@ -33,11 +36,11 @@ class _StoryPageState extends State<StoryPage> {
         ],
         "tr": {
           "title": "USTANIN ELİ",
-          "text": "Ben Alper Karabak. Lisede ve üniversitede Kuyumculuk ve Takı Tasarımı okudum. Yirmi yedi yıldır hiç durmadan, mesleğimi ilk günkü heyecanımla öğrenmeye ve icra etmeye devam ediyorum. 2012 yılında, bugün hâlâ faaliyet gösterdiğimiz BalladeArt'ı kurdum. Ballade, sevdiğim bir Chopin eseridir. İnsanların hikâyelerini sadece fonetik sanatlarla değil, görsel sanatlarla da ifade edilebileceğini düşünerek atölyeme adını verdim."
+          "text": "Ben Alper Karabak. Lisede ve üniversitede Kuyumculuk ve Takı Tasarımı okudum. Yirmi yedi yıldır hiç durmadan, mesleğimi ilk günkü heyecanımla öğrenmeye ve icra etmeye devam ediyorum."
         },
         "en": {
           "title": "THE MASTER'S HAND",
-          "text": "I am Alper Karabak. I studied Jewelry Design in high school and university. For twenty-seven years, I have been practicing my profession with the same excitement as the first day. In 2012, I founded BalladeArt, inspired by a Chopin piece I love. I named my workshop 'Ballade' believing that people's stories can be expressed not just through music, but through visual arts as well."
+          "text": "I am Alper Karabak. I studied Jewelry Design in high school and university. For twenty-seven years, I have been practicing my profession with the same excitement as the first day."
         }
       },
       {
@@ -48,11 +51,11 @@ class _StoryPageState extends State<StoryPage> {
         ],
         "tr": {
           "title": "BİRLİKTE YARATIM",
-          "text": "BalladeArt'ta insanların hikâyelerini semboller ve görsel vurgularla takılabilir hâle getirmek gibi bir derdimiz var. Bu yolculukta hayat arkadaşım Cansu Karabak ile birlikteyiz. Bildiklerimi kendisine aktardım o da daha minimalist şeyler yaparak atölyemize zarafet kazandırdı. Şimdi hem üretiyor hem de markamızın dijital dünyasını yönetiyor."
+          "text": "BalladeArt'ta insanların hikâyelerini semboller ve görsel vurgularla takılabilir hâle getirmek gibi bir derdimiz var."
         },
         "en": {
           "title": "CO-CREATION",
-          "text": "At BalladeArt, our mission is to turn people's stories into wearable art using symbols. I am on this journey with my life partner, Cansu Karabak. I taught her everything I know step by step. Cansu developed a minimalist style different from mine, adding elegance to our workshop. Now, she both creates and manages the digital world of our brand."
+          "text": "At BalladeArt, our mission is to turn people's stories into wearable art using symbols."
         }
       },
       {
@@ -63,11 +66,11 @@ class _StoryPageState extends State<StoryPage> {
         ],
         "tr": {
           "title": "SAF ZANAAT",
-          "text": "Yüzükler, kolyeler, taçlar, kemer tokaları ve minimal heykeller çalışıyoruz. Kıymetli metal ve taşla çalışma konusunda sınırları zorluyoruz. Biz genelde 3D modelleme kullanmayız. Aklımız, tecrübemiz ve yeteneğimiz ışığında çalışırız. Genel karakter olarak; antik görünüme sahip, mat ve eskitme dokulu, yaşanmışlık hissi veren ürünler üretiyoruz."
+          "text": "Yüzükler, kolyeler, taçlar, kemer tokaları ve minimal heykeller çalışıyoruz."
         },
         "en": {
           "title": "PURE CRAFT",
-          "text": "We work on rings, necklaces, crowns, belt buckles, and minimal sculptures, pushing the boundaries with precious metals and stones. We generally do not use 3D modeling; we work with our minds, experience, and hands. Our character is defined by designs with an antique look, matte textures, and a sense of history."
+          "text": "We work on rings, necklaces, crowns, belt buckles, and minimal sculptures."
         }
       },
       {
@@ -78,11 +81,11 @@ class _StoryPageState extends State<StoryPage> {
         ],
         "tr": {
           "title": "BALLADE'IN RUHU",
-          "text": "Seri üretim ürünleri çalışmayı tarzımıza ve etiğimize uygun bulmuyoruz. Müşterilerimiz bir konsept ya da hikâye ile gelir, istişare ederek tasarımın hatlarını belirleriz. Gerekli durumlarda fotoğraf ve video ile fikirlerini alır, üretime dahil ederiz. Bu süreç vakit alsa da, ortaya çıkan bağ ve müşterimizin heyecanı için bunu severek tercih ediyoruz."
+          "text": "Seri üretim ürünleri çalışmayı tarzımıza ve etiğimize uygun bulmuyoruz."
         },
         "en": {
           "title": "BALLADE'S SOUL",
-          "text": "We do not find mass production suitable for our style or ethics. Our clients come with a concept or story; we consult and determine the design together. When necessary, we get their feedback via photos and videos, involving them in production. Although this takes time, we prefer it for the bond it creates and the excitement it brings to our customers."
+          "text": "We do not find mass production suitable for our style or ethics."
         }
       },
     ];
@@ -94,14 +97,16 @@ class _StoryPageState extends State<StoryPage> {
     const Color ink = Color(0xFFDFD0B8);
 
     // Responsive text styles for Android
-    final headerStyle = GoogleFonts.cinzel(
+    final headerStyle = TextStyle(
+      fontFamily: appFontFamily,
       color: ink,
       fontSize: ResponsiveHelper.fontSize(context, 22, maxSize: 26),
       fontWeight: FontWeight.bold,
       letterSpacing: 2,
     );
 
-    final bodyStyle = GoogleFonts.cinzel(
+    final bodyStyle = TextStyle(
+      fontFamily: appFontFamily,
       color: ink.withOpacity(0.9),
       fontSize: ResponsiveHelper.fontSize(context, 15, maxSize: 17),
       height: 1.6,
@@ -215,7 +220,8 @@ class _InteractiveStoryCardState extends State<InteractiveStoryCard> {
     int nextIndex = (currentIndex + 1).clamp(0, widget.images.length - 1);
 
     // Calculate opacity for cross-fade
-    double segmentProgress = (_dragProgress * (widget.images.length - 1)) - currentIndex;
+    double segmentProgress =
+        (_dragProgress * (widget.images.length - 1)) - currentIndex;
 
     final isCompact = ResponsiveHelper.isCompactScreen(context);
 

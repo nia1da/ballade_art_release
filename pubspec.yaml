@@ -43,6 +43,14 @@ flutter:
     - assets/icons/
     - assets/videos/help.mp4
 
+  fonts:
+    - family: Cinzel
+      fonts:
+        - asset: assets/fonts/Cinzel-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Cinzel-Bold.ttf
+          weight: 700
+
 flutter_native_splash:
   color: "#222831"
   image: assets/images/splash_logo.png

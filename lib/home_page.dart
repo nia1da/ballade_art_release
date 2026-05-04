@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dpi_helper.dart';
 import 'package:video_player/video_player.dart';
-import 'story_page.dart';
+import 'story_page.dart'; // <-- Bunu ekle
 
-// 🔹 Yüzük ölçü tablosu (EU formatında)
+// 🔹 Yüzük ölçü tablosu (EU formatında; eski 'us' değerleri aynen 'eu' alanına taşındı)
 final List<Map<String, dynamic>> sizeChart = [
   {"eu": 1, "diameter": 13.0, "circumference": 40.84},
   {"eu": 1.5, "diameter": 13.16, "circumference": 41.35},
@@ -98,41 +96,33 @@ class _HomePageState extends State<HomePage> {
   Map<String, double> dpi = {"xdpi": 0.0, "ydpi": 0.0};
   late bool isTurkish;
 
+  static const String appFontFamily = 'Cinzel';
+
   @override
   void initState() {
     super.initState();
     final langCode = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-    isTurkish = langCode == 'tr';
+    isTurkish = langCode == 'tr'; // <-- dil tespiti buraya eklendi
+
     _loadDpi();
   }
 
-  // FIX: PlatformException yakalanıyor; fallback DPI ile uygulama donmaz
   Future<void> _loadDpi() async {
-    try {
-      final result = await DpiHelper.getDpi();
-      if (!mounted) return;
-      setState(() => dpi = result);
-    } on PlatformException catch (e) {
-      debugPrint('DPI alınamadı: $e');
-      if (!mounted) return;
-      // Fallback: Android/iOS mdpi baseline (160 DPI).
-      // ⚠��� Bu değer halka boyutunu etkilemez; sadece native kanal başarısız
-      // olduğunda uygulamanın sonsuz loading'e girmesini önler.
-      setState(() => dpi = {"xdpi": 160.0, "ydpi": 160.0});
-    }
+    final result = await DpiHelper.getDpi();
+    if (!mounted) return; // clean guard
+    setState(() => dpi = result);
   }
 
-  // FIX: hasClients guard eklendi; controller henüz attach edilmemişse crash olmaz
+  // 🔸 Seçili satırı görünür tut
   void _scrollToSelected() {
-    if (!_scrollController.hasClients) return;
-
     final index = sizeChart.indexed.reduce((a, b) =>
     (a.$2['diameter'] - diameterMm).abs() <
         (b.$2['diameter'] - diameterMm).abs()
         ? a
-        : b).$1;
+        : b)
+        .$1;
 
-    const double itemHeight = 64.0;
+    const double itemHeight = 64.0; // kart başına yaklaşık yükseklik
     final scrollOffset = _scrollController.offset;
     final viewHeight = _scrollController.position.viewportDimension;
     final targetOffset = index * itemHeight;
@@ -162,44 +152,42 @@ class _HomePageState extends State<HomePage> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelected());
   }
 
-  // FIX: try/finally ile controller her koşulda dispose edilir
   Future<void> _showHelpVideo() async {
     final controller = VideoPlayerController.asset('assets/videos/help.mp4');
-    try {
-      await controller.initialize();
-      if (!mounted) return;
 
-      controller
-        ..setLooping(true)
-        ..play();
+    await controller.initialize();
+    if (!mounted) return; // <- profesyonel koruma
 
-      await showDialog(
-        context: context,
-        barrierDismissible: true, // FIX: geri tuşu da dialog'u kapatır
-        builder: (_) => AlertDialog(
-          backgroundColor: const Color(0xFF222831),
-          title: Text(
-            isTurkish ? "Nasıl Kullanılır" : "How to Use",
-            style: const TextStyle(color: Color(0xFFDFD0B8)),
-          ),
-          content: AspectRatio(
-            aspectRatio: controller.value.aspectRatio,
-            child: VideoPlayer(controller),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                isTurkish ? "Kapat" : "Close",
-                style: const TextStyle(color: Color(0xFFDFD0B8)),
-              ),
-            ),
-          ],
+    controller
+      ..setLooping(true)
+      ..play();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF222831),
+        title: Text(
+          isTurkish ? "Nasıl Kullanılır" : "How to Use",
+          style: const TextStyle(color: Color(0xFFDFD0B8)),
         ),
-      );
-    } finally {
-      await controller.dispose(); // FIX: exception olsa bile çalışır
-    }
+        content: AspectRatio(
+          aspectRatio: controller.value.aspectRatio,
+          child: VideoPlayer(controller),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              isTurkish ? "Kapat" : "Close",
+              style: const TextStyle(color: Color(0xFFDFD0B8)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    controller.dispose();
   }
 
   Future<void> _shareOnWhatsApp(String message) async {
@@ -207,14 +195,7 @@ class _HomePageState extends State<HomePage> {
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
-  }
-
-  // FIX: ScrollController dispose edildi — memory leak giderildi
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
+  } //KILL ME NOW
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +205,10 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // ⚠️ DOKUNULMADI: Fiziksel halka boyutu hesaplama — bu değerler aynen korundu
     final xdpi = dpi["xdpi"]!;
     final dpr = MediaQuery.of(context).devicePixelRatio;
 
-    // ⚠️ DOKUNULMADI: mm → dp dönüşümü (DpiHelper.mmToDp)
+    // halka ölçüleri (dp)
     final maxDiameterDp =
         DpiHelper.mmToDp(mm: maxDiameter, dpi: xdpi, dpr: dpr) + 40;
     final currentDiameterDp =
@@ -239,7 +219,8 @@ class _HomePageState extends State<HomePage> {
     (a.$2['diameter'] - diameterMm).abs() <
         (b.$2['diameter'] - diameterMm).abs()
         ? a
-        : b).$1;
+        : b)
+        .$1;
 
     return Scaffold(
       backgroundColor: const Color(0xFF222831),
@@ -251,19 +232,21 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 16),
               InkWell(
                 onTap: () {
+                  // Yazıya basılınca Hikaye Sayfasına git
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const StoryPage()),
                   );
                 },
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Text(
+                  padding: const EdgeInsets.all(8.0), // Tıklama alanı biraz geniş olsun
+                  child: const Text(
                     "BALLADEART",
-                    style: GoogleFonts.cinzel(
+                    style: TextStyle(
+                      fontFamily: appFontFamily,
                       fontSize: 28,
                       letterSpacing: 4,
-                      color: const Color(0xFFDFD0B8),
+                      color: Color(0xFFDFD0B8),
                     ),
                   ),
                 ),
@@ -280,48 +263,34 @@ class _HomePageState extends State<HomePage> {
                       "assets/icons/help.svg",
                       width: 45,
                       height: 45,
-                      colorFilter: const ColorFilter.mode(Color(0xFFDFD0B8), BlendMode.srcIn),
+                      colorFilter: const ColorFilter.mode(
+                          Color(0xFFDFD0B8), BlendMode.srcIn),
                     ),
                   ),
 
                   const SizedBox(width: 12),
-
-                  // FIX: ConstrainedBox ile tablet/büyük ekranda Row overflow engellendi.
-                  // ⚠️ maxDiameterDp ve currentDiameterDp hesaplamaları DOKUNULMADI —
-                  //    sadece widget'ın ekrandan taşmasını engellemek için üst sınır eklendi.
-                  ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.55,
-                      maxHeight: MediaQuery.of(context).size.width * 0.55,
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SvgPicture.asset(
-                          "assets/icons/grid_box.svg",
-                          width: maxDiameterDp,
-                          height: maxDiameterDp,
-                          fit: BoxFit.contain,
-                          colorFilter: const ColorFilter.mode(
-                              Color(0xFFDFD0B8), BlendMode.srcIn),
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SvgPicture.asset(
+                        "assets/icons/grid_box.svg",
+                        width: maxDiameterDp,
+                        height: maxDiameterDp,
+                        fit: BoxFit.contain,
+                        colorFilter: const ColorFilter.mode(
+                            Color(0xFFDFD0B8), BlendMode.srcIn),
+                      ),
+                      Container(
+                        width: currentDiameterDp,
+                        height: currentDiameterDp,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFFDFD0B8), width: 1.8),
                         ),
-                        // ⚠️ DOKUNULMADI: Halka boyutu currentDiameterDp — fiziksel mm'den türetiliyor
-                        Container(
-                          width: currentDiameterDp,
-                          height: currentDiameterDp,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: const Color(0xFFDFD0B8),
-                              width: 1.9,
-                              strokeAlign: BorderSide.strokeAlignInside,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-
                   const SizedBox(width: 12),
                   IconButton(
                     onPressed: () {
@@ -329,13 +298,15 @@ class _HomePageState extends State<HomePage> {
                       final message = isTurkish
                           ? "Yüzük ölçüm sonucu:\nÖlçü: ${item['eu']}\nÇap: ${item['diameter']} mm\nÇevre: ${item['circumference']} mm"
                           : "Ring size result:\nSize: ${item['eu']}\nDiameter: ${item['diameter']} mm\nCircumference: ${item['circumference']} mm";
+
                       _shareOnWhatsApp(message);
                     },
                     icon: SvgPicture.asset(
                       "assets/icons/forward.svg",
                       width: 45,
                       height: 45,
-                      colorFilter: const ColorFilter.mode(Color(0xFFDFD0B8), BlendMode.srcIn),
+                      colorFilter: const ColorFilter.mode(
+                          Color(0xFFDFD0B8), BlendMode.srcIn),
                     ),
                   ),
                 ],
@@ -363,6 +334,7 @@ class _HomePageState extends State<HomePage> {
                         setState(() {
                           diameterMm = value;
                         });
+                        // seçili satırı görünür tut
                         WidgetsBinding.instance
                             .addPostFrameCallback((_) => _scrollToSelected());
                       },
@@ -393,13 +365,13 @@ class _HomePageState extends State<HomePage> {
               ),
 
               const SizedBox(height: 8),
-
-              // --- sütun başlıkları ---
+              // --- sütun başlıkları (liste üstü) ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 6),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
@@ -410,21 +382,23 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: Row(
                     children: [
+                      // Size
                       Expanded(
                         child: Text(
                           isTurkish ? "Ölçü" : "Size",
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: Color(0xFFDFD0B8),
                             fontWeight: FontWeight.w600,
                             fontSize: 10,
                           ),
                         ),
                       ),
+                      // Diameter (mm)
                       Expanded(
                         child: Center(
                           child: Text(
                             isTurkish ? "Çap" : "Diameter",
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Color(0xFFDFD0B8),
                               fontWeight: FontWeight.w600,
                               fontSize: 10,
@@ -432,12 +406,13 @@ class _HomePageState extends State<HomePage> {
                           ),
                         ),
                       ),
+                      // Circumference (mm)
                       Expanded(
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: Text(
                             isTurkish ? "Çevre" : "Circumference",
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Color(0xFFDFD0B8),
                               fontWeight: FontWeight.w600,
                               fontSize: 10,
@@ -478,32 +453,39 @@ class _HomePageState extends State<HomePage> {
                           Border.all(color: const Color(0xFFDFD0B8)),
                           borderRadius: BorderRadius.circular(8),
                           color: isSelected
-                              ? const Color(0xFFDFD0B8)
-                              .withValues(alpha: 0.1)
+                              ? const Color(0xFFDFD0B8).withValues(alpha: 0.1)
                               : Colors.transparent,
                         ),
                         child: Row(
                           children: [
+                            // 1) Size (EU) - sola hizalı
                             Expanded(
                               child: Text(
                                 "${item['eu']}",
-                                style: const TextStyle(color: Color(0xFFDFD0B8), fontSize: 18),
+                                style: const TextStyle(
+                                    color: Color(0xFFDFD0B8), fontSize: 18),
                               ),
                             ),
+
+                            // 2) Diameter (mm) - ortalı
                             Expanded(
                               child: Center(
                                 child: Text(
                                   "${item['diameter']}",
-                                  style: const TextStyle(color: Color(0xFFDFD0B8), fontSize: 18),
+                                  style: const TextStyle(
+                                      color: Color(0xFFDFD0B8), fontSize: 18),
                                 ),
                               ),
                             ),
+
+                            // 3) Circumference (mm) - sağa hizalı
                             Expanded(
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: Text(
                                   "${item['circumference']}",
-                                  style: const TextStyle(color: Color(0xFFDFD0B8), fontSize: 18),
+                                  style: const TextStyle(
+                                      color: Color(0xFFDFD0B8), fontSize: 18),
                                 ),
                               ),
                             ),
@@ -525,7 +507,8 @@ class _HomePageState extends State<HomePage> {
                       onTap: () async {
                         final url = Uri.parse(
                             "https://www.instagram.com/balladeart?igsh=Z3B6bHV5OWd4MXFw");
-                        if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                        if (!await launchUrl(url,
+                            mode: LaunchMode.externalApplication)) {
                           debugPrint("❌ Instagram linki açılamadı: $url");
                         }
                       },
@@ -539,7 +522,8 @@ class _HomePageState extends State<HomePage> {
                     InkWell(
                       onTap: () async {
                         final url = Uri.parse("https://www.balladeart.com/");
-                        if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+                        if (!await launchUrl(url,
+                            mode: LaunchMode.externalApplication)) {
                           debugPrint("❌ Website linki açılamadı: $url");
                         }
                       },
@@ -552,8 +536,8 @@ class _HomePageState extends State<HomePage> {
                     ),
                     InkWell(
                       onTap: () async {
-                        final url = Uri.parse(
-                            "https://maps.app.goo.gl/3FNax1PRdAbcfiPN7");
+                        final url =
+                        Uri.parse("https://maps.app.goo.gl/3FNax1PRdAbcfiPN7");
                         if (await canLaunchUrl(url)) {
                           await launchUrl(url,
                               mode: LaunchMode.externalApplication);

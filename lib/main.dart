@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'home_page.dart';
 
@@ -25,13 +24,16 @@ void main() {
 class BalladeArtApp extends StatelessWidget {
   const BalladeArtApp({super.key});
 
-  static const Color bg = Color(0xFF222831);        // arka plan
-  static const Color ink = Color(0xFFDFD0B8);       // krem/şampanya
-  static const Color inkDim = Color(0x66DFD0B8);    // soluk çizgi
+  static const Color bg = Color(0xFF222831); // arka plan
+  static const Color ink = Color(0xFFDFD0B8); // krem/şampanya
+  static const Color inkDim = Color(0x66DFD0B8); // soluk çizgi
+
+  static const String appFontFamily = 'Cinzel';
 
   @override
   Widget build(BuildContext context) {
-    final baseText = GoogleFonts.cinzel(
+    const baseText = TextStyle(
+      fontFamily: appFontFamily,
       color: ink,
       letterSpacing: 2,
     );
@@ -45,7 +47,7 @@ class BalladeArtApp extends StatelessWidget {
           thumbShape: RoundSliderThumbShape(enabledThumbRadius: 8),
           trackHeight: 2,
         ),
-        textTheme: TextTheme(
+        textTheme: const TextTheme().copyWith(
           bodyMedium: baseText.copyWith(fontSize: 14),
           titleLarge: baseText.copyWith(fontSize: 28, letterSpacing: 4),
           titleMedium: baseText.copyWith(fontSize: 18),
