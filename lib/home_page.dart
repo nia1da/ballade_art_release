@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dpi_helper.dart';
 import 'package:video_player/video_player.dart';
-import 'story_page.dart'; // <-- Bunu ekle
+import 'story_page.dart';
+import 'responsive_helper.dart';
 
 // 🔹 Yüzük ölçü tablosu (EU formatında; eski 'us' değerleri aynen 'eu' alanına taşındı)
 final List<Map<String, dynamic>> sizeChart = [
@@ -89,6 +93,8 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   final ScrollController _scrollController = ScrollController();
 
+  Timer? _scrollDebounce;
+
   double diameterMm = 13.0;
   final double minDiameter = 13.0;
   final double maxDiameter = 24.3;
@@ -96,67 +102,94 @@ class _HomePageState extends State<HomePage> {
   Map<String, double> dpi = {"xdpi": 0.0, "ydpi": 0.0};
   late bool isTurkish;
 
-  static const String appFontFamily = 'Cinzel';
+  // ✅ her zaman bir selected index tut (UI + scroll aynı kaynaktan beslensin)
+  int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
     final langCode = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
-    isTurkish = langCode == 'tr'; // <-- dil tespiti buraya eklendi
-
+    isTurkish = langCode == 'tr';
+    _selectedIndex = _closestIndexFor(diameterMm);
     _loadDpi();
+  }
+
+  @override
+  void dispose() {
+    _scrollDebounce?.cancel();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadDpi() async {
     final result = await DpiHelper.getDpi();
-    if (!mounted) return; // clean guard
+    if (!mounted) return;
     setState(() => dpi = result);
   }
 
-  // 🔸 Seçili satırı görünür tut
-  void _scrollToSelected() {
-    final index = sizeChart.indexed.reduce((a, b) =>
-    (a.$2['diameter'] - diameterMm).abs() <
-        (b.$2['diameter'] - diameterMm).abs()
+  int _closestIndexFor(double mm) {
+    return sizeChart.indexed
+        .reduce((a, b) =>
+    (a.$2['diameter'] - mm).abs() < (b.$2['diameter'] - mm).abs()
         ? a
         : b)
         .$1;
-
-    const double itemHeight = 64.0; // kart başına yaklaşık yükseklik
-    final scrollOffset = _scrollController.offset;
-    final viewHeight = _scrollController.position.viewportDimension;
-    final targetOffset = index * itemHeight;
-
-    if (targetOffset < scrollOffset ||
-        targetOffset > scrollOffset + viewHeight - itemHeight) {
-      _scrollController.animateTo(
-        (targetOffset - viewHeight / 2)
-            .clamp(0.0, _scrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOut,
-      );
-    }
   }
 
-  void _stepBackward() {
+  void _scrollToIndex({
+    required int index,
+    required double itemExtent,
+    bool animated = true,
+  }) {
+    if (!_scrollController.hasClients) return;
+
+    final target = (index * itemExtent)
+        .clamp(0.0, _scrollController.position.maxScrollExtent);
+
+    if (!animated) {
+      _scrollController.jumpTo(target);
+      return;
+    }
+
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _debouncedScrollToSelected({
+    required double itemExtent,
+    bool animated = true,
+  }) {
+    _scrollDebounce?.cancel();
+    _scrollDebounce = Timer(const Duration(milliseconds: 70), () {
+      if (!mounted) return;
+      _scrollToIndex(index: _selectedIndex, itemExtent: itemExtent, animated: animated);
+    });
+  }
+
+  void _stepBackward({required double itemExtent}) {
     setState(() {
       diameterMm = (diameterMm - 0.16).clamp(minDiameter, maxDiameter);
+      _selectedIndex = _closestIndexFor(diameterMm);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelected());
+    _scrollToIndex(index: _selectedIndex, itemExtent: itemExtent, animated: true);
   }
 
-  void _stepForward() {
+  void _stepForward({required double itemExtent}) {
     setState(() {
       diameterMm = (diameterMm + 0.16).clamp(minDiameter, maxDiameter);
+      _selectedIndex = _closestIndexFor(diameterMm);
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToSelected());
+    _scrollToIndex(index: _selectedIndex, itemExtent: itemExtent, animated: true);
   }
 
   Future<void> _showHelpVideo() async {
     final controller = VideoPlayerController.asset('assets/videos/help.mp4');
 
     await controller.initialize();
-    if (!mounted) return; // <- profesyonel koruma
+    if (!mounted) return;
 
     controller
       ..setLooping(true)
@@ -195,7 +228,7 @@ class _HomePageState extends State<HomePage> {
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
-  } //KILL ME NOW
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -205,70 +238,81 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
+    final isCompact = ResponsiveHelper.isCompactScreen(context);
+    final safe = ResponsiveHelper.getSafePadding(context);
+
+    // Küçük ekranda daha sıkı boşluklar (listeye alan açmak için)
+    final topGap = isCompact ? 8.0 : 16.0;
+    final afterTitleGap = isCompact ? 12.0 : 24.0;
+    final afterRingGap = isCompact ? 10.0 : 16.0;
+    final afterSliderGap = isCompact ? 6.0 : 8.0;
+    final afterSectionTitleGap = isCompact ? 6.0 : 8.0;
+    final footerTopGap = isCompact ? 12.0 : 24.0;
+    final footerBottomGap = (isCompact ? 10.0 : 16.0) + safe.bottom;
+
+    final titleFontSize = isCompact ? 24.0 : 28.0;
+    final sideIconSize = isCompact ? 40.0 : 45.0;
+
+    // ✅ Liste satır yüksekliği: itemExtent veriyoruz -> scroll deterministik
+    final itemExtent = isCompact ? 56.0 : 68.0;
+
     final xdpi = dpi["xdpi"]!;
     final dpr = MediaQuery.of(context).devicePixelRatio;
 
-    // halka ölçüleri (dp)
+    // halka ölçüleri (dp) - DOKUNMUYORUZ
     final maxDiameterDp =
         DpiHelper.mmToDp(mm: maxDiameter, dpi: xdpi, dpr: dpr) + 40;
     final currentDiameterDp =
     DpiHelper.mmToDp(mm: diameterMm, dpi: xdpi, dpr: dpr);
 
-    // en yakın index
-    final closestIndex = sizeChart.indexed.reduce((a, b) =>
-    (a.$2['diameter'] - diameterMm).abs() <
-        (b.$2['diameter'] - diameterMm).abs()
-        ? a
-        : b)
-        .$1;
-
     return Scaffold(
       backgroundColor: const Color(0xFF222831),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: EdgeInsets.fromLTRB(8, topGap, 8, 0),
           child: Column(
             children: [
-              const SizedBox(height: 16),
               InkWell(
                 onTap: () {
-                  // Yazıya basılınca Hikaye Sayfasına git
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const StoryPage()),
                   );
                 },
                 child: Padding(
-                  padding: const EdgeInsets.all(8.0), // Tıklama alanı biraz geniş olsun
-                  child: const Text(
+                  padding: EdgeInsets.symmetric(
+                    vertical: isCompact ? 4 : 8,
+                    horizontal: 8,
+                  ),
+                  child: Text(
                     "BALLADEART",
-                    style: TextStyle(
-                      fontFamily: appFontFamily,
-                      fontSize: 28,
+                    style: GoogleFonts.cinzel(
+                      fontSize: titleFontSize,
                       letterSpacing: 4,
-                      color: Color(0xFFDFD0B8),
+                      color: const Color(0xFFDFD0B8),
                     ),
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: afterTitleGap),
 
               // 🔹 kutu + halka + ikonlar
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   IconButton(
-                    onPressed: () => _showHelpVideo(),
+                    onPressed: _showHelpVideo,
                     icon: SvgPicture.asset(
                       "assets/icons/help.svg",
-                      width: 45,
-                      height: 45,
+                      width: sideIconSize,
+                      height: sideIconSize,
                       colorFilter: const ColorFilter.mode(
-                          Color(0xFFDFD0B8), BlendMode.srcIn),
+                        Color(0xFFDFD0B8),
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
-
-                  const SizedBox(width: 12),
+                  SizedBox(width: isCompact ? 8 : 12),
                   Stack(
                     alignment: Alignment.center,
                     children: [
@@ -278,7 +322,9 @@ class _HomePageState extends State<HomePage> {
                         height: maxDiameterDp,
                         fit: BoxFit.contain,
                         colorFilter: const ColorFilter.mode(
-                            Color(0xFFDFD0B8), BlendMode.srcIn),
+                          Color(0xFFDFD0B8),
+                          BlendMode.srcIn,
+                        ),
                       ),
                       Container(
                         width: currentDiameterDp,
@@ -286,39 +332,42 @@ class _HomePageState extends State<HomePage> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                              color: const Color(0xFFDFD0B8), width: 1.8),
+                            color: const Color(0xFFDFD0B8),
+                            width: 1.8,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: isCompact ? 8 : 12),
                   IconButton(
                     onPressed: () {
-                      final item = sizeChart[closestIndex];
+                      final item = sizeChart[_selectedIndex];
                       final message = isTurkish
                           ? "Yüzük ölçüm sonucu:\nÖlçü: ${item['eu']}\nÇap: ${item['diameter']} mm\nÇevre: ${item['circumference']} mm"
                           : "Ring size result:\nSize: ${item['eu']}\nDiameter: ${item['diameter']} mm\nCircumference: ${item['circumference']} mm";
-
                       _shareOnWhatsApp(message);
                     },
                     icon: SvgPicture.asset(
                       "assets/icons/forward.svg",
-                      width: 45,
-                      height: 45,
+                      width: sideIconSize,
+                      height: sideIconSize,
                       colorFilter: const ColorFilter.mode(
-                          Color(0xFFDFD0B8), BlendMode.srcIn),
+                        Color(0xFFDFD0B8),
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 16),
+              SizedBox(height: afterRingGap),
 
               // 🔹 slider + oklar
               Row(
                 children: [
                   IconButton(
-                    onPressed: _stepBackward,
+                    onPressed: () => _stepBackward(itemExtent: itemExtent),
                     icon: const Icon(Icons.chevron_left,
                         color: Color(0xFFDFD0B8)),
                   ),
@@ -333,22 +382,28 @@ class _HomePageState extends State<HomePage> {
                       onChanged: (value) {
                         setState(() {
                           diameterMm = value;
+                          _selectedIndex = _closestIndexFor(diameterMm);
                         });
-                        // seçili satırı görünür tut
-                        WidgetsBinding.instance
-                            .addPostFrameCallback((_) => _scrollToSelected());
+
+                        // ✅ hızlı sürükleme + çubuğa uzak tıklama -> stabil scroll
+                        _debouncedScrollToSelected(itemExtent: itemExtent);
+                      },
+                      onChangeEnd: (_) {
+                        // ✅ final konumda kesin scroll (debounce beklemeden)
+                        _scrollDebounce?.cancel();
+                        _scrollToIndex(index: _selectedIndex, itemExtent: itemExtent, animated: true);
                       },
                     ),
                   ),
                   IconButton(
-                    onPressed: _stepForward,
+                    onPressed: () => _stepForward(itemExtent: itemExtent),
                     icon: const Icon(Icons.chevron_right,
                         color: Color(0xFFDFD0B8)),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: afterSliderGap),
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -356,22 +411,26 @@ class _HomePageState extends State<HomePage> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     isTurkish ? "Ölçü Tablosu" : "Size Chart",
-                    style: const TextStyle(
-                      color: Color(0xFFDFD0B8),
-                      fontSize: 18,
+                    style: TextStyle(
+                      color: const Color(0xFFDFD0B8),
+                      fontSize: isCompact ? 16 : 18,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              SizedBox(height: afterSectionTitleGap),
+
               // --- sütun başlıkları (liste üstü) ---
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 6),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: isCompact ? 8 : 10,
+                  ),
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
@@ -382,40 +441,43 @@ class _HomePageState extends State<HomePage> {
                   ),
                   child: Row(
                     children: [
-                      // Size
                       Expanded(
                         child: Text(
                           isTurkish ? "Ölçü" : "Size",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: Color(0xFFDFD0B8),
+                            color: const Color(0xFFDFD0B8),
                             fontWeight: FontWeight.w600,
-                            fontSize: 10,
+                            fontSize: isCompact ? 9 : 10,
                           ),
                         ),
                       ),
-                      // Diameter (mm)
                       Expanded(
                         child: Center(
                           child: Text(
                             isTurkish ? "Çap" : "Diameter",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Color(0xFFDFD0B8),
+                              color: const Color(0xFFDFD0B8),
                               fontWeight: FontWeight.w600,
-                              fontSize: 10,
+                              fontSize: isCompact ? 9 : 10,
                             ),
                           ),
                         ),
                       ),
-                      // Circumference (mm)
                       Expanded(
                         child: Align(
                           alignment: Alignment.centerRight,
                           child: Text(
                             isTurkish ? "Çevre" : "Circumference",
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: Color(0xFFDFD0B8),
+                              color: const Color(0xFFDFD0B8),
                               fontWeight: FontWeight.w600,
-                              fontSize: 10,
+                              fontSize: isCompact ? 9 : 10,
                             ),
                           ),
                         ),
@@ -424,33 +486,37 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
 
-              // 🔹 liste
+              // 🔹 liste (scrollable kısım burası kalsın)
               Expanded(
                 child: ListView.builder(
                   controller: _scrollController,
                   itemCount: sizeChart.length,
+                  itemExtent: itemExtent, // ✅ kritik: scroll hesapları kesin
                   itemBuilder: (context, index) {
                     final item = sizeChart[index];
-                    final isSelected = index == closestIndex;
+                    final isSelected = index == _selectedIndex;
 
                     return GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: () {
                         setState(() {
                           diameterMm = item['diameter'];
+                          _selectedIndex = index;
                         });
-                        WidgetsBinding.instance
-                            .addPostFrameCallback((_) => _scrollToSelected());
+                        _scrollToIndex(index: _selectedIndex, itemExtent: itemExtent, animated: true);
                       },
                       child: Container(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                        margin: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: isCompact ? 4 : 6,
+                        ),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: isCompact ? 10 : 12,
+                        ),
                         decoration: BoxDecoration(
-                          border:
-                          Border.all(color: const Color(0xFFDFD0B8)),
+                          border: Border.all(color: const Color(0xFFDFD0B8)),
                           borderRadius: BorderRadius.circular(8),
                           color: isSelected
                               ? const Color(0xFFDFD0B8).withValues(alpha: 0.1)
@@ -458,34 +524,35 @@ class _HomePageState extends State<HomePage> {
                         ),
                         child: Row(
                           children: [
-                            // 1) Size (EU) - sola hizalı
                             Expanded(
                               child: Text(
                                 "${item['eu']}",
-                                style: const TextStyle(
-                                    color: Color(0xFFDFD0B8), fontSize: 18),
+                                style: TextStyle(
+                                  color: const Color(0xFFDFD0B8),
+                                  fontSize: isCompact ? 16 : 18,
+                                ),
                               ),
                             ),
-
-                            // 2) Diameter (mm) - ortalı
                             Expanded(
                               child: Center(
                                 child: Text(
                                   "${item['diameter']}",
-                                  style: const TextStyle(
-                                      color: Color(0xFFDFD0B8), fontSize: 18),
+                                  style: TextStyle(
+                                    color: const Color(0xFFDFD0B8),
+                                    fontSize: isCompact ? 16 : 18,
+                                  ),
                                 ),
                               ),
                             ),
-
-                            // 3) Circumference (mm) - sağa hizalı
                             Expanded(
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: Text(
                                   "${item['circumference']}",
-                                  style: const TextStyle(
-                                      color: Color(0xFFDFD0B8), fontSize: 18),
+                                  style: TextStyle(
+                                    color: const Color(0xFFDFD0B8),
+                                    fontSize: isCompact ? 16 : 18,
+                                  ),
                                 ),
                               ),
                             ),
@@ -499,7 +566,10 @@ class _HomePageState extends State<HomePage> {
 
               // 🔹 alt ikonlar
               Padding(
-                padding: const EdgeInsets.only(bottom: 16, top: 24),
+                padding: EdgeInsets.only(
+                  top: footerTopGap,
+                  bottom: footerBottomGap,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
@@ -514,9 +584,11 @@ class _HomePageState extends State<HomePage> {
                       },
                       child: SvgPicture.asset(
                         "assets/icons/insta.svg",
-                        width: 32,
+                        width: isCompact ? 28 : 32,
                         colorFilter: const ColorFilter.mode(
-                            Color(0xFFDFD0B8), BlendMode.srcIn),
+                          Color(0xFFDFD0B8),
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                     InkWell(
@@ -529,9 +601,11 @@ class _HomePageState extends State<HomePage> {
                       },
                       child: SvgPicture.asset(
                         "assets/icons/website.svg",
-                        width: 32,
+                        width: isCompact ? 28 : 32,
                         colorFilter: const ColorFilter.mode(
-                            Color(0xFFDFD0B8), BlendMode.srcIn),
+                          Color(0xFFDFD0B8),
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                     InkWell(
@@ -545,9 +619,11 @@ class _HomePageState extends State<HomePage> {
                       },
                       child: SvgPicture.asset(
                         "assets/icons/location.svg",
-                        width: 30,
+                        width: isCompact ? 26 : 30,
                         colorFilter: const ColorFilter.mode(
-                            Color(0xFFDFD0B8), BlendMode.srcIn),
+                          Color(0xFFDFD0B8),
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
                   ],

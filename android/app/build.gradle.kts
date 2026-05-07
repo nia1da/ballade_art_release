@@ -41,7 +41,7 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = (keystoreProperties["storeFile"] as String?)?.let { file(it) }
+            storeFile = (keystoreProperties["storeFile"] as String?)?.let { rootProject.file(it) }
             storePassword = keystoreProperties["storePassword"] as String?
 
             // If you ever see: "Tag number over 30 is not supported"
