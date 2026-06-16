@@ -13,7 +13,7 @@
     </queries>
 
     <application
-        android:label="Ring Sizer"
+        android:label="BalladeArt"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"
